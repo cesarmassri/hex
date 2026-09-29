@@ -165,6 +165,11 @@
     elapsed += dt;
     scoreEl.textContent = elapsed.toFixed(1);
 
+    // Guardamos la posición anterior para que un borde pueda bloquear el
+    // movimiento en vez de "teletransportar" el triángulo al otro lado.
+    const previousPlayerAngle = player.angle;
+    const previousRotation = rotation;
+
     const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     player.angle += dir * player.speed * (1 + difficulty() * .18) * dt;
 
@@ -174,76 +179,138 @@
     if (spawnTimer <= 0) spawnWall();
 
     for (const wall of walls) {
+      wall.prevR = wall.r;
       wall.r -= wall.speed * dt;
     }
 
     for (const wall of walls) {
       const segAngle = Math.PI * 2 / 6;
-
-      // Se pierde únicamente cuando la punta exterior del triángulo toca pared.
-      let localAngle = normalizeAngle(player.angle - rotation - wall.phase);
-      let idx = Math.floor((localAngle + segAngle / 2) / segAngle) % 6;
+      const drawnWallHalfAngle = segAngle * 0.49;
 
       const tipRadius = player.orbit + 11;
-      const tipTouchesWall =
-        Math.abs(wall.r - tipRadius) <= wall.thickness / 2;
-
-      if (tipTouchesWall && wall.blocked[idx]) {
-        gameOver();
-        break;
-      }
-
-      // Cuando la pared está a la altura del cuerpo, los bordes laterales
-      // del hueco son sólidos: el triángulo puede deslizarse contra ellos,
-      // pero no atravesarlos angularmente.
       const triangleInnerRadius = player.orbit - 9;
       const triangleOuterRadius = player.orbit + 11;
+
       const wallInnerRadius = wall.r - wall.thickness / 2;
       const wallOuterRadius = wall.r + wall.thickness / 2;
-      const bodyTouchesWall =
+
+      function signedAngleDifference(a, b) {
+        return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+      }
+
+      function unwrapNear(a, reference) {
+        return reference + signedAngleDifference(a, reference);
+      }
+
+      function isBlockedAtAngle(a) {
+        const n = normalizeAngle(a);
+        for (let i = 0; i < 6; i++) {
+          if (!wall.blocked[i]) continue;
+          const center = i * segAngle;
+          if (Math.abs(signedAngleDifference(n, center)) <= drawnWallHalfAngle) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // Devuelve el intervalo angular del hueco conectado en el que estaba el
+      // triángulo en el frame anterior. Usar el frame anterior es lo que
+      // impide atravesar de un lado al otro del borde.
+      function gapContaining(a) {
+        const n = normalizeAngle(a);
+        const sector =
+          Math.floor((n + segAngle / 2) / segAngle) % 6;
+
+        if (wall.blocked[sector]) return null;
+
+        let leftOpen = 0;
+        let rightOpen = 0;
+
+        while (
+          leftOpen < 5 &&
+          !wall.blocked[(sector - leftOpen - 1 + 6) % 6]
+        ) {
+          leftOpen++;
+        }
+
+        while (
+          rightOpen < 5 &&
+          !wall.blocked[(sector + rightOpen + 1) % 6]
+        ) {
+          rightOpen++;
+        }
+
+        // Las paredes dibujadas terminan en 0.49 sectores desde su centro,
+        // así que el hueco visual llega hasta 0.51 sectores desde el centro
+        // del primer/último sector abierto.
+        let center = sector * segAngle;
+        center = unwrapNear(center, a);
+
+        return {
+          left: center - leftOpen * segAngle - segAngle * 0.51,
+          right: center + rightOpen * segAngle + segAngle * 0.51
+        };
+      }
+
+      const bodyOverlapsWall =
         wallInnerRadius <= triangleOuterRadius &&
         wallOuterRadius >= triangleInnerRadius;
 
-      if (!bodyTouchesWall) continue;
+      if (bodyOverlapsWall) {
+        const previousLocal =
+          previousPlayerAngle - previousRotation - wall.phase;
+        const gap = gapContaining(previousLocal);
 
-      const bodyHalfAngle = Math.atan2(8, triangleInnerRadius);
-      const allowedHalf = segAngle / 2 - bodyHalfAngle;
+        if (gap) {
+          let currentLocal =
+            player.angle - rotation - wall.phase;
+          currentLocal = unwrapNear(currentLocal, previousLocal);
 
-      // Buscamos el hueco abierto más cercano al ángulo actual.
-      let bestGap = -1;
-      let bestDelta = Infinity;
+          // Anchura real aproximada del triángulo justo en la zona radial
+          // donde coincide con esta pared. En la punta vale 0; hacia la base
+          // aumenta gradualmente hasta 8 px.
+          const overlapInnerRadius =
+            Math.max(wallInnerRadius, triangleInnerRadius);
+          const radialOffset = overlapInnerRadius - player.orbit;
+          const tangentHalfWidth = Math.max(
+            0,
+            Math.min(8, 8 * (11 - radialOffset) / 20)
+          );
+          const bodyHalfAngle = Math.atan2(
+            tangentHalfWidth,
+            Math.max(1, overlapInnerRadius)
+          );
 
-      for (let gap = 0; gap < 6; gap++) {
-        if (wall.blocked[gap]) continue;
+          const leftLimit = gap.left + bodyHalfAngle;
+          const rightLimit = gap.right - bodyHalfAngle;
 
-        const gapCenter = gap * segAngle;
-        let delta = localAngle - gapCenter;
-        delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+          let clampedLocal = currentLocal;
+          if (clampedLocal < leftLimit) clampedLocal = leftLimit;
+          if (clampedLocal > rightLimit) clampedLocal = rightLimit;
 
-        const distance = Math.abs(delta);
-        if (distance < bestDelta) {
-          bestDelta = distance;
-          bestGap = gap;
+          if (clampedLocal !== currentLocal) {
+            // Queda apoyado contra el borde. Como el límite está expresado
+            // en coordenadas de la pared, si la pared gira también lo empuja.
+            player.angle = clampedLocal + rotation + wall.phase;
+          }
         }
       }
 
-      if (bestGap === -1) continue;
+      // Regla de derrota: únicamente la punta exterior mata al tocar pared.
+      // Se evalúa después de bloquear el movimiento lateral, de modo que el
+      // cuerpo puede chocar con el borde sin atravesarlo.
+      const tipIsInsideWallRadially =
+        wallInnerRadius <= tipRadius &&
+        wallOuterRadius >= tipRadius;
 
-      const gapCenter = bestGap * segAngle;
-      let delta = localAngle - gapCenter;
-      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      if (tipIsInsideWallRadially) {
+        const tipLocal =
+          player.angle - rotation - wall.phase;
 
-      // Solo aplicamos la restricción si el triángulo está entrando o ya está
-      // dentro de ese hueco. Al llegar a un borde, queda apoyado contra él.
-      if (Math.abs(delta) <= segAngle / 2 + bodyHalfAngle) {
-        const clampedDelta = Math.max(-allowedHalf, Math.min(allowedHalf, delta));
-
-        if (clampedDelta !== delta) {
-          player.angle = gapCenter + clampedDelta + rotation + wall.phase;
-
-          // Recalculamos por si el ajuste dejó la punta exactamente junto al borde.
-          localAngle = normalizeAngle(player.angle - rotation - wall.phase);
-          idx = Math.floor((localAngle + segAngle / 2) / segAngle) % 6;
+        if (isBlockedAtAngle(tipLocal)) {
+          gameOver();
+          break;
         }
       }
     }
