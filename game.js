@@ -22,7 +22,7 @@
     angle: -Math.PI / 2,
     orbit: 92,
     radius: 8,
-    speed: 2.75
+    speed: 4.25
   };
 
   let walls = [];
@@ -46,11 +46,6 @@
     a %= Math.PI * 2;
     if (a < 0) a += Math.PI * 2;
     return a;
-  }
-
-  function angleDistance(a, b) {
-    let d = Math.abs(normalizeAngle(a) - normalizeAngle(b));
-    return Math.min(d, Math.PI * 2 - d);
   }
 
   function resetGame() {
@@ -182,7 +177,6 @@
       wall.r -= wall.speed * dt;
     }
 
-    // Collision: detect walls crossing the player's orbital radius.
     for (const wall of walls) {
       const collisionBand =
         Math.abs(wall.r - player.orbit) < wall.thickness * 0.58 + player.radius;
@@ -217,7 +211,7 @@
     ctx.closePath();
   }
 
-  function drawBackground(t) {
+  function drawBackground() {
     const hue = (elapsed * 18 + 220) % 360;
     ctx.fillStyle = `hsl(${hue} 28% 9%)`;
     ctx.fillRect(-W, -H, W * 2, H * 2);
@@ -298,14 +292,14 @@
     ctx.restore();
   }
 
-  function render(t) {
+  function render() {
     ctx.save();
 
     const sx = shake ? (Math.random() - .5) * shake : 0;
     const sy = shake ? (Math.random() - .5) * shake : 0;
     ctx.translate(W / 2 + sx, H / 2 + sy);
 
-    drawBackground(t);
+    drawBackground();
     drawWalls();
     drawCore();
     drawPlayer();
@@ -323,7 +317,7 @@
     last = now;
 
     update(dt);
-    render(now / 1000);
+    render();
     requestAnimationFrame(frame);
   }
 

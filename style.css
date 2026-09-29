@@ -90,12 +90,6 @@ canvas {
   opacity: .7 !important;
 }
 
-.panel small {
-  display: block;
-  margin-top: 16px;
-  opacity: .55;
-}
-
 button {
   border: 0;
   border-radius: 999px;
