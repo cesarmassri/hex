@@ -1,4 +1,4 @@
-# Hex
+# Hex Survivor
 
 Juego arcade minimalista hecho en HTML5 Canvas, CSS y JavaScript puro.
 
