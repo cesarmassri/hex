@@ -178,10 +178,12 @@
     }
 
     for (const wall of walls) {
-      const collisionBand =
-        Math.abs(wall.r - player.orbit) < wall.thickness * 0.58 + player.radius;
+      // La derrota ocurre cuando la punta exterior del triángulo toca la pared.
+      const tipRadius = player.orbit + 11;
+      const tipTouchesWall =
+        Math.abs(wall.r - tipRadius) <= wall.thickness / 2;
 
-      if (!collisionBand) continue;
+      if (!tipTouchesWall) continue;
 
       const segAngle = Math.PI * 2 / 6;
       const localAngle = normalizeAngle(player.angle - rotation - wall.phase);
