@@ -1,29 +1,6 @@
-# Hex Survivor
+# Hex
 
 Juego arcade minimalista hecho en HTML5 Canvas, CSS y JavaScript puro.
-
-## Jugar localmente
-
-Abrí `index.html` en el navegador.
-
-También podés servir la carpeta con:
-
-```bash
-python3 -m http.server 8000
-```
-
-y abrir `http://localhost:8000`.
-
-## Publicar en GitHub Pages
-
-1. Creá un repositorio nuevo en GitHub.
-2. Subí `index.html`, `style.css` y `game.js` a la raíz.
-3. En GitHub: **Settings → Pages**.
-4. En **Build and deployment**, elegí **Deploy from a branch**.
-5. Elegí la rama `main` y la carpeta `/ (root)`.
-6. Guardá.
-
-El juego no necesita backend, paquetes, compilación ni assets externos.
 
 ## Controles
 
