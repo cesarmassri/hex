@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Hex Survivor</title>
+  <meta name="description" content="Juego arcade minimalista inspirado en esquivar paredes alrededor de un hexágono." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <canvas id="game" aria-label="Hex Survivor"></canvas>
+
+    <section id="hud" class="hud">
+      <div class="brand">HEX SURVIVOR</div>
+      <div class="score"><span id="score">0.0</span>s</div>
+    </section>
+
+    <section id="overlay" class="overlay">
+      <div class="panel">
+        <h1>HEX SURVIVOR</h1>
+        <p>Girás alrededor del centro. Encontrá el hueco antes de que llegue la pared.</p>
+        <p class="controls">← → / A D &nbsp;•&nbsp; tocar izquierda o derecha</p>
+        <button id="startBtn">JUGAR</button>
+        <small>Sin assets externos. Funciona directamente en GitHub Pages.</small>
+      </div>
+    </section>
+
+    <div class="touch-controls" aria-hidden="true">
+      <button id="leftTouch" tabindex="-1">◀</button>
+      <button id="rightTouch" tabindex="-1">▶</button>
+    </div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
