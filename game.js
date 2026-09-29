@@ -178,20 +178,51 @@
     }
 
     for (const wall of walls) {
-      // La derrota ocurre cuando la punta exterior del triángulo toca la pared.
-      const tipRadius = player.orbit + 11;
-      const tipTouchesWall =
-        Math.abs(wall.r - tipRadius) <= wall.thickness / 2;
-
-      if (!tipTouchesWall) continue;
-
       const segAngle = Math.PI * 2 / 6;
       const localAngle = normalizeAngle(player.angle - rotation - wall.phase);
       const idx = Math.floor((localAngle + segAngle / 2) / segAngle) % 6;
 
-      if (wall.blocked[idx]) {
+      // Se pierde únicamente cuando la punta exterior del triángulo toca pared.
+      const tipRadius = player.orbit + 11;
+      const tipTouchesWall =
+        Math.abs(wall.r - tipRadius) <= wall.thickness / 2;
+
+      if (tipTouchesWall && wall.blocked[idx]) {
         gameOver();
         break;
+      }
+
+      // Si la punta está en el hueco pero la pared alcanza un lateral del
+      // triángulo, la pared lo empuja angularmente hacia dentro del hueco.
+      const triangleInnerRadius = player.orbit - 9;
+      const triangleOuterRadius = player.orbit + 11;
+      const wallInnerRadius = wall.r - wall.thickness / 2;
+      const wallOuterRadius = wall.r + wall.thickness / 2;
+      const bodyTouchesWall =
+        wallInnerRadius <= triangleOuterRadius &&
+        wallOuterRadius >= triangleInnerRadius;
+
+      if (!bodyTouchesWall || wall.blocked[idx]) continue;
+
+      const gapCenter = idx * segAngle;
+
+      // Diferencia angular con signo en [-PI, PI].
+      let delta = localAngle - gapCenter;
+      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+
+      // El ancho angular aproximado del cuerpo del triángulo.
+      const bodyHalfAngle = Math.atan2(8, triangleInnerRadius);
+      const allowedHalf = segAngle / 2 - bodyHalfAngle;
+
+      const leftIdx = (idx + 5) % 6;
+      const rightIdx = (idx + 1) % 6;
+
+      if (delta < -allowedHalf && wall.blocked[leftIdx]) {
+        const pushedLocalAngle = gapCenter - allowedHalf;
+        player.angle = pushedLocalAngle + rotation + wall.phase;
+      } else if (delta > allowedHalf && wall.blocked[rightIdx]) {
+        const pushedLocalAngle = gapCenter + allowedHalf;
+        player.angle = pushedLocalAngle + rotation + wall.phase;
       }
     }
 
